@@ -16,7 +16,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Parse arguments list
-$mArgs        = getopt("b::n::e::h::",['show-blacklists-only::','no-color::','email-if-bl::','host::']);
+$mArgs        = getopt("b::n::e::h::m::",['show-blacklists-only::','no-color::','email-if-bl::','host::','nsca::']);
 
 // SMTP host
 $queryHost    = parseArgs($mArgs, 'h', 'host');
@@ -29,7 +29,11 @@ $noColor      = parseArgs($mArgs, 'n', 'no-color');
 
 // Only output blacklist information
 $blOnly       = parseArgs($mArgs, 'b', 'show-blacklists-only');
+
+// Only send to NSCA
+$nscaOnly     = parseArgs($mArgs, 'm', 'nsca');
 // END
+
 
 // Configure e-mail settings here
 
@@ -57,7 +61,8 @@ if (strlen($queryHost) <= 0) {
 	printUsage();
 }
 
-echo "Checking host " . $queryHost . "\n";
+if (!$nscaOnly)
+    echo "Checking host " . $queryHost . "\n";
 
 $scrapeUrl = 'http://multirbl.valli.org/lookup/'. $queryHost.'.html';
 $jsonUrl = 'http://multirbl.valli.org/json-lookup.php';
@@ -80,7 +85,8 @@ $emailBody     = '';
 
 
 $html = \SimpleHtmlDom\file_get_html($scrapeUrl);
-echo "Scraping page...\r";
+if (!$nscaOnly)
+    echo "Scraping page...\r";
 // Testing mode
 //file_put_contents(__DIR__.'/tmp/scraped.html', $html);
 //$html = \SimpleHtmlDom\str_get_html(file_get_contents(__DIR__.'/tmp/scraped.html'));
@@ -137,7 +143,8 @@ foreach ($l_ids as $k=>$id) {
 	try {
 		$progress = floor(($k / count($l_ids)) * 100);
 
-		echo "Retrieving data from DNSBLs ({$progress}%)...\r";
+        if (!$nscaOnly)
+            echo "Retrieving data from DNSBLs ({$progress}%)...\r";
 		$context  = stream_context_create($opts);
 		$result   = file_get_contents($jsonUrl, false, $context);
 
@@ -156,13 +163,17 @@ foreach ($l_ids as $k=>$id) {
 			(array) $result->data
 		);
 	} catch (\Exception $e) {
-		echo 'ERROR: ' . $e->getMessage() . "\n";
+        if (!$nscaOnly)
+            echo 'ERROR: ' . $e->getMessage() . "\n";
 	}
 }
 
 // Clear the progress bar
-echo "                                           \r";
-echo "RBL data retrieved!\n\n";
+if (!$nscaOnly)
+{
+    echo "                                           \r";
+    echo "RBL data retrieved!\n\n";
+}
 
 // Sort array by type
 usort($listedResults, function($a, $b) {
@@ -227,9 +238,21 @@ foreach ($listedResults as $k=>$res) {
 	$lastType = $res['blType'];
 }
 
-echo colorizeString("Total Blacklisted: ".$listedBl, 'red')."\n";
-echo "Total lists: ".count($listedResults)."\n";
-echo "Number of blacklists domain is not listed on: {$unlistedBl}\n\n";
+if ($nscaOnly)
+{
+    $nagiosCode = 0;
+    if ($listedBl > 0)
+    {
+        $nagiosCode = 1;
+    }
+    system("echo '$nscaOnly;MultiRBL - $queryHost;$nagiosCode;Total Blacklisted: $listedBl' | /usr/sbin/send_nsca -H $nscaOnly -to 2 -d ';'");
+}
+else
+{
+    echo colorizeString("Total Blacklisted: ".$listedBl, 'red')."\n";
+    echo "Total lists: ".count($listedResults)."\n";
+    echo "Number of blacklists domain is not listed on: {$unlistedBl}\n\n";
+}
 
 if ($listedBl && $email) {
 	echo "Sending e-mail to " . $emailSettings['to'] . "...\n";
@@ -324,7 +347,7 @@ function sendMail($emailBody) {
 }
 
 function printUsage() {
-	echo "\nusage: MultiRbl.php [-b -n -e -h=smtp.yourdomain.com] [--show-blacklists-only=y --no-color=y --email-if-bl=y --host=smtp.yourdomain.com]";
+	echo "\nusage: MultiRbl.php [-b -n -e -h=smtp.yourdomain.com] [--show-blacklists-only=y --no-color=y --email-if-bl=y --host=smtp.yourdomain.com --nsca=nsca_host]";
 	echo "\n";
 	exit;
 }
