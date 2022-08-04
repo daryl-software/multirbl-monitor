@@ -245,7 +245,7 @@ if ($nscaOnly)
     {
         $nagiosCode = 1;
     }
-    system("echo -e '$nscaOnly\tMultiRBL - $queryHost\t$nagiosCode\tTotal Blacklisted: $listedBl' | /usr/sbin/send_nsca -H $nscaOnly -to 2");
+    system("echo '$nscaOnly	MultiRBL - $queryHost	$nagiosCode	Total Blacklisted: $listedBl' | /usr/sbin/send_nsca -H $nscaOnly -to 2");
 }
 else
 {
