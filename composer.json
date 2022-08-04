@@ -1,6 +1,12 @@
 {
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/gregorg/simplehtmldom"
+        }
+    ],
     "require": {
-        "mgargano/simplehtmldom": "^1.5",
+        "mgargano/simplehtmldom": "dev-php7.4",
         "sensiolabs/ansi-to-html": "^1.1"
     }
 }
