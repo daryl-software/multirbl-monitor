@@ -64,8 +64,8 @@ if (strlen($queryHost) <= 0) {
 if (!$nscaOnly)
     echo "Checking host " . $queryHost . "\n";
 
-$scrapeUrl = 'http://multirbl.valli.org/lookup/'. $queryHost.'.html';
-$jsonUrl = 'http://multirbl.valli.org/json-lookup.php';
+$scrapeUrl = 'https://multirbl.valli.org/lookup/'. $queryHost.'.html';
+$jsonUrl = 'https://multirbl.valli.org/json-lookup.php';
 
 $blTypes = [
 	'b' => colorizeString('Blacklist', 'red'),
@@ -83,8 +83,30 @@ $listedBl   = 0;
 $emailBody     = '';
 // END
 
+# Lid are the first column in https://multirbl.valli.org/lookup/$IP.html
+$excludedLid = array(
+	822, #darklist.de : DNS request failed
+	821, #dnsbl.isx.fr : DNS request failed
+	252, #KISA-RBL spamlist.or.kr : DNS request failed
+	712, #cidr.bl.mcafee.com : DNS request failed
+	659, #PowerWeb DNSBL : DNS request failed
+	814, #realtimeBLACKLIST.COM rbl.realtimeblacklist.com : DNS request failed
+	823, #Spamdown RBL sbl.spamdown.org : DNS request failed
+	683, #SurGATE Reputation Network (SRN) srn.surgate.net : DNS request failed
+	525, #PSBL whitelist whitelist.surriel.com : DNS request failed
+	772  #Suomispam Blacklist : many errors
+);
 
-$html = \SimpleHtmlDom\file_get_html($scrapeUrl);
+$httpOpts = array(
+	'http' => array(
+		'header' => array(
+			'Content-Type: text/html; charset=UTF-8',
+			'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36'
+		)
+	)
+);
+$streamContext  = stream_context_create($httpOpts);
+$html = \SimpleHtmlDom\file_get_html($scrapeUrl,false,$streamContext);
 if (!$nscaOnly)
     echo "Scraping page...\r";
 // Testing mode
@@ -119,6 +141,9 @@ if (!count($l_ids)) {
 
 // Get JSON of blacklist status
 foreach ($l_ids as $k=>$id) {
+	if (in_array($id,$excludedLid)) {
+		continue;
+	}
 	$postdata = http_build_query(
 		[
 			'lid' => $id,
