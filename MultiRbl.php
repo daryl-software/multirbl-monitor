@@ -81,20 +81,31 @@ $lastType   = '';
 $unlistedBl = 0;
 $listedBl   = 0;
 $emailBody     = '';
+$listOfBl      = '';
+$isCriticalBl = false;
+
 // END
 
 # Lid are the first column in https://multirbl.valli.org/lookup/$IP.html
 $excludedLid = array(
 	822, #darklist.de : DNS request failed
 	821, #dnsbl.isx.fr : DNS request failed
-	252, #KISA-RBL spamlist.or.kr : DNS request failed
 	712, #cidr.bl.mcafee.com : DNS request failed
 	659, #PowerWeb DNSBL : DNS request failed
 	814, #realtimeBLACKLIST.COM rbl.realtimeblacklist.com : DNS request failed
 	823, #Spamdown RBL sbl.spamdown.org : DNS request failed
+	730, #V4BL-FREE/DDNSBL-FREE : DNS request failed
 	683, #SurGATE Reputation Network (SRN) srn.surgate.net : DNS request failed
 	525, #PSBL whitelist whitelist.surriel.com : DNS request failed
 	772  #Suomispam Blacklist : many errors
+);
+$criticalBlList = array(
+	640, #Spamhaus DBL Domain Block List
+	6,   #Spamhaus PBL Policy Block List
+	4,   #Spamhaus SBL Spamhaus Block List
+	88,  #Spamhaus SBL-XBL Combined Block List
+	5,   #Spamhaus XBL Exploits Block List
+	2    #Spamhaus ZEN Combined Block List
 );
 
 $httpOpts = array(
@@ -184,7 +195,7 @@ foreach ($l_ids as $k=>$id) {
 		}
 
 		$listedResults[] = array_merge(
-			[ 'blName' => $result->name, 'blUrl' => $result->url, 'blType' => $result->type ],
+			[ 'blId' => $id, 'blName' => $result->name, 'blUrl' => $result->url, 'blType' => $result->type ],
 			(array) $result->data
 		);
 	} catch (\Exception $e) {
@@ -224,6 +235,10 @@ foreach ($listedResults as $k=>$res) {
 
 		if ($res['listed'] == true) {
 			$listedBl++;
+			$listOfBl.='('.$res['blId'].')'.$res['blName'].' ';
+			if (in_array($res['blId'],$criticalBlList)) {
+				$isCriticalBl=true;
+			}
 		}
 	}
 
@@ -269,14 +284,23 @@ if ($nscaOnly)
     if ($listedBl > 0)
     {
         $nagiosCode = 1;
+		if ($isCriticalBl == true) {
+			$nagiosCode = 2;
+		}
+
     }
-    system("echo '$nscaOnly	MultiRBL - $queryHost	$nagiosCode	Total Blacklisted: $listedBl' | /usr/sbin/send_nsca -H $nscaOnly -to 2");
+	system("echo '$nscaOnly	MultiRBL - $queryHost	$nagiosCode	Total Blacklisted: $listedBl $listOfBl' | /usr/sbin/send_nsca -H $nscaOnly -to 2");
 }
 else
 {
     echo colorizeString("Total Blacklisted: ".$listedBl, 'red')."\n";
     echo "Total lists: ".count($listedResults)."\n";
-    echo "Number of blacklists domain is not listed on: {$unlistedBl}\n\n";
+    echo "Number of blacklists domain is not listed on: {$unlistedBl}\n";
+	echo "List were IP is blacklisted : $listOfBl \n";
+	if ($isCriticalBl == true) {
+		echo "At least one blacklist is critical !\n";
+	}
+	echo "\n";
 }
 
 if ($listedBl && $email) {
