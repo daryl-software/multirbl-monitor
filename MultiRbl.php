@@ -97,7 +97,8 @@ $excludedLid = array(
 	730, #V4BL-FREE/DDNSBL-FREE : DNS request failed
 	683, #SurGATE Reputation Network (SRN) srn.surgate.net : DNS request failed
 	525, #PSBL whitelist whitelist.surriel.com : DNS request failed
-	772  #Suomispam Blacklist : many errors
+	772, #Suomispam Blacklist : many errors
+	787  #lugh.ch Blacklist : service is gone
 );
 $criticalBlList = array(
 	640, #Spamhaus DBL Domain Block List
