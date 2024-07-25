@@ -98,6 +98,7 @@ $excludedLid = array(
 	683, #SurGATE Reputation Network (SRN) srn.surgate.net : DNS request failed
 	525, #PSBL whitelist whitelist.surriel.com : DNS request failed
 	772, #Suomispam Blacklist : many errors
+	637, #SenderScore combined : bug Excessive Number of Queries
 	787  #lugh.ch Blacklist : service is gone
 );
 $criticalBlList = array(
